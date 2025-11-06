@@ -9,7 +9,7 @@ export async function request() {
 			{ role: 'system', content: 'You are a tiny word-pair generator. Output only a JSON array with pairs (arrays of length 2) with the specified length.' },
 			{ role: 'user', content: prompt }
 		],
-		max_tokens: length * 6, // estimate is length*4, *6 for leeway
+		max_tokens: 300, // estimate is length*4, *6 for leeway
 		temperature: 0.9,
 		frequency_penalty: 0.8,     // try something between 0.2 and 1
 		presence_penalty: 0.5,      // a bit lower maybe
@@ -26,40 +26,43 @@ export async function request() {
 	})
 
 	let out = []
-	try {
-		let str = "";
-		const parsed = await llmResp.json()
-		if (!(str = parsed.message?.content?.[0]?.text?.trim())) {
-			throw new Error("Returned json response not formated correctly!")
-		}
-		const match = str.match(/\[(?:[\s\S]*)\]/);
-		str = match ? match[0] : str;
-
-		if (str[str.length - 2] !== ']') {
-			str += ']'
-		}
-
-		out = JSON.parse(str);
-
-		const seen = new Map();
-		const uniquePairs = [[""]];
-		uniquePairs.pop()
-
-		for (const [a, b] of out) {
-			const key = a < b ? `${a}|${b}` : `${b}|${a}`; // normalize without sorting
-			if (!seen.has(key)) {
-				seen.set(key, true);
-				uniquePairs.push([a, b]);
-			}
-		}
-
-		return {
-			resp: uniquePairs, debug: {
-				og: { str: str, len: str.match(/\[/g).length - 1 },
-				parsed: { str: JSON.stringify(out), len: out.length },
-				filtered: { str: JSON.stringify(uniquePairs), len: uniquePairs.length },
-			}
-		};
+	let str = "";
+	const parsed = await llmResp.json()
+	if (!(str = parsed.message?.content?.[0]?.text?.trim())) {
+		// throw new Error("Returned json response not formated correctly!")
+		throw new Error("Returned json response not formated correctly\nResponse: " + JSON.stringify(parsed));
 	}
-	catch (e) { throw e }
+	var match = str.match(/\[(?:[\s\S]*)\]/);
+	match = match ? match[0] : str;
+
+	if (match[match.length - 2] !== ']') {
+		match += ']'
+	}
+
+	try {
+		out = JSON.parse(match);
+	} catch (e) {
+		throw new Error(`ERROR: ${e.message}\nINFO: ${match}`);
+	}
+
+	const seen = new Map();
+	/** @type {string[][]} */
+	const uniquePairs = [];
+
+	for (const [a, b] of out) {
+		const key = a < b ? `${a}|${b}` : `${b}|${a}`; // normalize without sorting
+		if (!seen.has(key)) {
+			seen.set(key, true);
+			uniquePairs.push([a, b]);
+		}
+	}
+
+	return {
+		resp: uniquePairs, debug: {
+			response: parsed,
+			og: { str: str, len: str.match(/\[/g).length - 1 },
+			parsed: { str: JSON.stringify(out), len: out.length },
+			filtered: { str: JSON.stringify(uniquePairs), len: uniquePairs.length, num_filtered: out.length - uniquePairs.length },
+		}
+	};
 }

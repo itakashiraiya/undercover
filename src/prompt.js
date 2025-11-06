@@ -1,16 +1,22 @@
 import { examples } from "./examples";
 
+const languages = {
+	pt: "portuguese (dont utilize mainland portuguese nor brazilian portugues terms",
+	en: "english"
+}
+const language = languages.pt;
+
 const seed = Math.random().toString(36).slice(2, 10);
-const language = "portuguese";
 // Turn examples into forbidden text
 const examples_text = examples.map(pair => pair[0] + "/" + pair[1]).join(" ");
 // Categories for the model to choose from each time
 const categories = ["nature", "food", "clothing", "activities", "places", "animals", "furniture", "transportation", "weather", "everyday objects"];
-export const length = 150;
+export const length = 1500;
 export const prompt = `
 Rules:
-- RETURN EXACTLY ONE JSON object which is a list of pairs like: '[["word1","word2"],["word3","word4"],["word5","word6"]]'. No new lines. NOTHING more nothing less.
+- RETURN EXACTLY ONE JSON object which is a list of UNIQUE pairs like: '[["word1","word2"],["word3","word4"],["word5","word6"]]'. No new lines. NOTHING more nothing less.
 - Make the list ${length} pairs long.
+- NO REPEATS.
 - All values MUST be single lowercase words.
 - The pairs must be parallel-domain analogy, having the same "role" (like both are fruits, both are places for relaxation, etc.).
 - No verbs or adjectives, only nouns.
