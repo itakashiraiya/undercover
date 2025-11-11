@@ -1,7 +1,6 @@
 import { prompt, length } from "./prompt";
 import { getEnv } from "./env";
 
-/** @param string[][] */
 export async function request() {
 	const payload = {
 		model: 'command-a-03-2025',
@@ -29,15 +28,17 @@ export async function request() {
 	let str = "";
 	const parsed = await llmResp.json()
 	if (!(str = parsed.message?.content?.[0]?.text?.trim())) {
-		// throw new Error("Returned json response not formated correctly!")
-		throw new Error("Returned json response not formated correctly\nResponse: " + JSON.stringify(parsed));
+		throw new Error("Returned json response not formated correctly!\nResponse: " + JSON.stringify(parsed));
 	}
-	var match = str.match(/\[(?:[\s\S]*)\]/);
-	match = match ? match[0] : str;
 
-	if (match[match.length - 2] !== ']') {
-		match += ']'
-	}
+
+	/** @type {string} */
+	// @ts-ignore
+	var match = str.match(/\[(?:[\s\S]*)\]/);
+	if (!match) { throw new Error("Unable to parse returned text content!\nText: " + str) }
+	match = match[0];
+
+	if (match[match.length - 2] !== ']') { match += ']' }
 
 	try {
 		out = JSON.parse(match);

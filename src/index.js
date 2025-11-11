@@ -48,16 +48,6 @@ function jsonHeaders(origin) {
 	}
 }
 
-
-function getJsonData() {
-}
-
-/**
- * @param {any} data
- */
-function storeJsonData(data) {
-}
-
 /**
  * @param {{ method: string; headers: { get: (arg0: string) => any; }; }} request
  */

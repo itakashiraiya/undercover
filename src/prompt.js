@@ -4,13 +4,14 @@ const languages = {
 	pt: "portuguese (dont utilize mainland portuguese nor brazilian portugues terms",
 	en: "english"
 }
-const language = languages.pt;
+const language = languages.en;
 
 const seed = Math.random().toString(36).slice(2, 10);
 // Turn examples into forbidden text
 const examples_text = examples.map(pair => pair[0] + "/" + pair[1]).join(" ");
 // Categories for the model to choose from each time
-const categories = ["nature", "food", "clothing", "activities", "places", "animals", "furniture", "transportation", "weather", "everyday objects"];
+// const categories = ["nature", "food", "clothing", "activities", "places", "animals", "furniture", "transportation", "weather", "everyday objects"];
+const categories = ["clash royale cards"];
 export const length = 1500;
 export const prompt = `
 Rules:
