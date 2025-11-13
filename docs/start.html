@@ -1,0 +1,10 @@
+<form hx-post="/server/start">
+  <h1>🎭 Undercover — Configurar partida</h1>
+  <label>Número de jogadores:</label>
+  <input id='numPlayers' type='number' min='3' max='12' value='6' />
+  <label>Undercover(s):</label>
+  <input id='numUndercover' type='number' min='1' max='4' value='1' />
+  <label>Branco(s):</label>
+  <input id='numBlank' type='number' min='0' max='4' value='1' />
+  <button id='startBtn' hx-get='/server/setup' hx-swap='innerHTML'>Iniciar partida</button>
+</form>
