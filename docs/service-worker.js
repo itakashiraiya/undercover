@@ -32,7 +32,6 @@ async function runmodule(path) {
 		});
 		const text = await res.text();
 		functions[path] = (0, eval)("(()=> {" + text + "})()");
-		return "HEY!";
 	}
 	return functions[path]();
 }
@@ -56,6 +55,12 @@ function errorRespond(errMsg) {
 	return respond(200, `<p style="color:red">SW error: ${errMsg}</p>`)
 }
 
+function devHandling(url) {
+	if (url.searchParams.has('dev')) {
+		for (let key in functions) delete functions[key];
+	}
+}
+
 const functions = {
 }
 
@@ -63,6 +68,8 @@ self.addEventListener('fetch', event => {
 	// @ts-ignore
 	const url = new URL(event.request.url);
 	const path = url.pathname;
+
+	devHandling(url);
 
 	// intercept requests that start with /server (adjust as needed)
 	if (path.startsWith('/server')) {
