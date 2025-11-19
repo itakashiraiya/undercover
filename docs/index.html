@@ -8,10 +8,6 @@
   <button hx-get="/server/bleh" hx-target="#result">Click me</button>
   <div id="result">Initial content!!!</div>
   <div hx-get="start.html" hx-swap="outerHTML" hx-trigger="load"></div>
-  <script>
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(reg => console.log('SW registered, scope:', reg.scope))
-      .catch(err => console.error('SW registration failed:', err));
-  </script>
+  <script src="main.js"></script>
 </body>
 </html>

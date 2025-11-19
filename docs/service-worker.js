@@ -23,18 +23,94 @@ async function runscript(path) {
 }
 
 /**
- * @param {string} path
+ * @param {Event} event
  */
-async function runmodule(path) {
+async function runModule(event) {
+	// @ts-ignore
+	const url = new URL(event.request.url);
+	const path = url.pathname;
+	if (!functions[path]) {
+		try {
+			const res = await fetch("/cmds/bleh.js", { cache: "no-store" });
+			const moduleText = await res.text();
+			// Wrap in a function that returns a function instead of immediate eval
+			const fn = new Function("clientId", moduleText);
+			functions[path] = () => fn(event.clientId); // lazy execution
+		} catch (err) {
+			throw new Error("Failed to load module: " + err.message);
+		}
+	}
+}
+
+/**
+ * @param {Event} event
+ */
+async function runmodule(event) {
+	// @ts-ignore
+	const url = new URL(event.request.url);
+	const path = url.pathname;
 	if (!functions[path]) {
 		const res = await fetch("/cmds/bleh.js", { cache: "no-store" }).catch(err => {
 			throw new Error("Fetch error: " + err.message);
 		});
-		const text = await res.text();
-		functions[path] = (0, eval)("(()=> {" + text + "})()");
+		const code = await res.text();
+		functions[path] = (0, eval)("(()=> {" + code + "})()");
+		// functions[path] = (0, eval)("(()=> {" + code + "})(" + event.clientId.toString() + ")");
+		// functions[path] = (clientId) => {
+		// 	const mod = eval(`${code}`);   // now main is defined in this scope
+		// 	return mod.main(clientId);
+		// };
 	}
-	return functions[path]();
+	return functions[path](event.clientId);
 }
+
+const state = {
+	/**
+	 * @param {string} clientId
+	 */
+	get: clientId => {
+		const requestId = Math.random().toString(36).slice(2);
+
+		return new Promise(_ => {
+			const handler = event => {
+				if (
+					event.data?.type === "STATE_RESPONSE" &&
+					event.data.requestId === requestId
+				) {
+					self.removeEventListener("message", handler);
+					return event.data.state;
+				}
+			};
+
+			self.addEventListener("message", handler);
+
+			self.clients.get(clientId).then(client => {
+				client.postMessage({
+					type: "REQUEST_STATE",
+					requestId
+				});
+			});
+		});
+	},
+
+	/**
+	 * @param {number} clientId
+	 * @param {any} state
+	 * @returns {Promise<Response?>}
+	 */
+	set: async (clientId, state) => {
+		return await self.clients.get(clientId).then(client => {
+			if (!client) {
+				return errorRespond("No client!")
+			}
+			client.postMessage({
+				type: "UPDATE_SESSION_STATE",
+				state
+			});
+		});
+	}
+}
+
 
 /**
  * @param {number} code
@@ -77,7 +153,7 @@ self.addEventListener('fetch', event => {
 		// @ts-ignore
 		event.respondWith((async () => {
 			try {
-				const ret = await runmodule(path);
+				const ret = await runmodule(event);
 				// const ret = text;
 
 				return new Response(ret, {
