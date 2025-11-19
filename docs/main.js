@@ -1,14 +1,18 @@
 navigator.serviceWorker.addEventListener("message", event => {
 	const msg = event.data;
 	const type = msg?.type;
+
 	if (type === "REQUEST_STATE") {
+		const stateString = sessionStorage.getItem("myState");
+		const stateObj = stateString ? JSON.parse(stateString) : {};
 		event.source.postMessage({
 			type: "STATE_RESPONSE",
 			requestId: msg.requestId,
-			state: sessionStorage.getItem("myState")
+			state: stateObj
 		});
 	} else if (type === "UPDATE_SESSION_STATE") {
-		sessionStorage.setItem("myState", event.data.state);
+		// store as JSON string
+		sessionStorage.setItem("myState", JSON.stringify(event.data.state));
 	}
 });
 

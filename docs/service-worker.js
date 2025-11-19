@@ -42,43 +42,22 @@ async function runModule(event) {
 	}
 }
 
-/**
- * @param {Event} event
- */
-async function runmodule(event) {
-	// @ts-ignore
-	const url = new URL(event.request.url);
-	const path = url.pathname;
-	if (!functions[path]) {
-		const res = await fetch("/cmds/bleh.js", { cache: "no-store" }).catch(err => {
-			throw new Error("Fetch error: " + err.message);
-		});
-		const code = await res.text();
-		functions[path] = (0, eval)("(()=> {" + code + "})()");
-		// functions[path] = (0, eval)("(()=> {" + code + "})(" + event.clientId.toString() + ")");
-		// functions[path] = (clientId) => {
-		// 	const mod = eval(`${code}`);   // now main is defined in this scope
-		// 	return mod.main(clientId);
-		// };
-	}
-	return functions[path](event.clientId);
-}
 
 const state = {
 	/**
 	 * @param {string} clientId
 	 */
-	get: clientId => {
+	getOld: async clientId => {
 		const requestId = Math.random().toString(36).slice(2);
 
-		return new Promise(_ => {
+		return new Promise(resolve => {
 			const handler = event => {
 				if (
 					event.data?.type === "STATE_RESPONSE" &&
 					event.data.requestId === requestId
 				) {
 					self.removeEventListener("message", handler);
-					return event.data.state;
+					resolve(event.data.state);
 				}
 			};
 
@@ -92,21 +71,60 @@ const state = {
 			});
 		});
 	},
+	/**
+	 * Get the state of a client
+	 * @param {string} clientId
+	 * @param {number} [timeout=5000] - optional timeout in ms
+	 * @returns {Promise<any>}
+	 */
+	get: (clientId, timeout = 5000) => {
+		const requestId = Math.random().toString(36).slice(2);
+
+		return new Promise(async (resolve, reject) => {
+			const handler = event => {
+				if (
+					event.data?.type === "STATE_RESPONSE" &&
+					event.data.requestId === requestId
+				) {
+					self.removeEventListener("message", handler);
+					clearTimeout(timer);
+					resolve(event.data.state ?? {}); // plain object
+				}
+			};
+
+			self.addEventListener("message", handler);
+
+			const client = await self.clients.get(clientId);
+			if (!client) {
+				self.removeEventListener("message", handler);
+				return reject(new Error("Client not found"));
+			}
+
+			client.postMessage({
+				type: "REQUEST_STATE",
+				requestId
+			});
+
+			const timer = setTimeout(() => {
+				self.removeEventListener("message", handler);
+				reject(new Error("Timeout waiting for client state"));
+			}, timeout);
+		});
+	},
 
 	/**
-	 * @param {number} clientId
-	 * @param {any} state
-	 * @returns {Promise<Response?>}
+	 * Send updated state to a client
+	 * @param {string} clientId
+	 * @param {object} stateData
+	 * @returns {Promise<void>}
 	 */
-	set: async (clientId, state) => {
-		return await self.clients.get(clientId).then(client => {
-			if (!client) {
-				return errorRespond("No client!")
-			}
-			client.postMessage({
-				type: "UPDATE_SESSION_STATE",
-				state
-			});
+	set: async (clientId, stateData) => {
+		const client = await self.clients.get(clientId);
+		if (!client) throw new Error("Client not found");
+
+		client.postMessage({
+			type: "UPDATE_SESSION_STATE",
+			state: stateData
 		});
 	}
 }
@@ -139,20 +157,36 @@ function devHandling(url) {
 
 const functions = {
 }
+/**
+ * @param {Event} event
+ */
+async function runmodule(event) {
+	// @ts-ignore
+	const url = new URL(event.request.url);
+	const path = url.pathname.replace(/^\/server\//, "/cmds/");
+	if (!functions[path]) {
+		const res = await fetch(path + ".js", { cache: "no-store" }).catch(err => {
+			throw new Error("Fetch error: " + err.message);
+		});
+		const code = await res.text();
+		functions[path] = (0, eval)("(()=> {" + code + "})()");
+	}
+	return functions[path](event.clientId);
+}
 
 self.addEventListener('fetch', event => {
 	// @ts-ignore
 	const url = new URL(event.request.url);
 	const path = url.pathname;
-
 	devHandling(url);
 
 	// intercept requests that start with /server (adjust as needed)
-	if (path.startsWith('/server')) {
+	if (path.startsWith('/server/')) {
 		// Prevent the request from going to network and respond with our HTML
 		// @ts-ignore
 		event.respondWith((async () => {
 			try {
+				// return errorRespond(path);
 				const ret = await runmodule(event);
 				// const ret = text;
 
