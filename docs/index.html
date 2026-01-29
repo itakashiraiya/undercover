@@ -1,14 +1,109 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <script src="https://unpkg.com/htmx.org@1.9.3"></script>
-  <link rel="icon" type="/image/png" href="/assets/favicon.png">
+<meta charset="UTF-8">
+<title>HTMX Fake Backend</title>
+<script src="https://unpkg.com/htmx.org@1.9.2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sinon.js/15.2.0/sinon.js"></script>
+<script type="module" src="js/main.js"></script>
 </head>
 <body>
-  <button hx-get="/server/bleh" hx-target="#result">Click me</button>
-  <div id="result">Initial content!!!</div>
-  <div hx-get="start.html" hx-swap="outerHTML" hx-trigger="load"></div>
-  <script src="main.js"></script>
-  <div hx-get="/server/start" hx-swap="outerHTML" hx-trigger="load"></div>
+
+<h3>Counter</h3>
+<!-- <div id="counter">0</div> -->
+<!-- <button hx-post="/increment" hx-target="#counter">Increment</button> -->
+
+<div id="setup">
+  <form hx-post="/start-game" hx-target="#game">
+    <label>Choose player counts:
+      <input type="number" name="undercovers" value="1">
+      <input type="number" name="mrWhites" value="1">
+    </label>
+    <div><div hx-get="/add-player-button" hx-target="this" hx-trigger="load" hx-vals='{"rm-hook":"rm_player(this)"}' hx-swap="outerHTML"></div></div>
+    <div id="player-list">
+
+      <div hx-get="/add-player" hx-target="this" hx-trigger="load" hx-vals='{"n":4,"rm-hook":"rm_player(this)"}' hx-swap="outerHTML"></div>
+    </div>
+    <button type="submit">Start Game</button>
+    <script>
+	document.addEventListener("DOMContentLoaded", () => {
+		let form = document.currentScript.parentElement;
+	});
+        let form;
+	const list = document.getElementById("player-list");
+	let counter = 4;
+	const min = 3;
+
+	form.body.addEventListener("htmx:afterRequest", (e) => {
+		if (e.target !== par || !e.detail.xhr.responseURL.startsWith("/add-player")) return;
+		counter++;
+	});
+
+	function for_each_btn(vis) {
+		console.log("list:", list);
+		Array.from(list.children).flatMap(el => el.children).filter(e => e.tagNAME === "BUTTON").forEach(btn => { btn.style.visibility = vis });
+	}
+
+	function hide() {
+		for_each_btn("hidden");
+	}
+
+	function show() {
+		for_each_btn("visible");
+	}
+
+	function rm_player(target) {
+		if (counter <= min) return;
+		const li = target.closest('li');
+
+		const evt = new CustomEvent('custom:playerRemoved', {
+			detail: { li },
+			bubbles: true,
+		});
+
+		li.dispatchEvent(evt);
+		li.remove();
+		counter--;
+		if (counter <= min) hide();
+	}
+    </script>
+  </form>
+</div>
+
+<div id="game">
+  <!-- Increment UI will be injected here after setup -->
+</div>
+<script>
+//----------  player minimum
+const par = document.querySelector("#player-list");
+{
+let dragged;
+
+par.addEventListener("dragstart", e => {
+	if (e.target.tagName !== "SPAN") return;
+	dragged = e.target.closest("LI");
+	if (!dragged || dragged.parentNode !== par) return;
+	dragged.classList.add("dragging");
+});
+
+par.addEventListener("dragend", e => {
+	dragged?.classList.remove("dragging")
+	dragged = null;
+});
+
+par.addEventListener("dragover", e => {
+	if (!dragged) return;
+
+	const elt = e.target.closest("LI");
+	if (!elt || elt === dragged || elt.parentNode !== par) return;
+
+	e.preventDefault();
+
+	const rect = elt.getBoundingClientRect();
+	const after = e.clientY > rect.top + elt.offsetHeight / 2;
+	par.insertBefore(dragged, after ? elt.nextSibling : elt);
+});
+}
+</script>
 </body>
 </html>
